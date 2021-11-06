@@ -1,17 +1,31 @@
-const jwt = require("jsonwebtoken");
+const express = require('express');
+const router = express.Router();
+const mysqlConnection = require('../configurations/db-conf');
+const jwt = require('jsonwebtoken');
 
-function verifier(req, res, next){
-    if(!req.headers.authorization){
-        return res.status(401).send("unauthorized no clave");
-    }
-    const token = req.headers.authorization.split(' ')[1];
-    if (token === 'null'){
-        return res.status(401).send("unauthorized no token");
-    }
-    const payload = jwt.verify(token, 'secret');
-    console.log('payload '+payload._id);
-    req.userId = payload._id;
-    next();
-}
 
-module.exports = verifier;
+//Visualizar Personas
+router.post("/login", (req, res) => {
+    const body = req.body;
+    console.log(body.nombre);
+    let user;           
+
+    mysqlConnection.query("Select nombre, contrasena from usuario where nombre = ?", body.nombre, (err, rows, field) => {
+        if (!err) {
+            user = rows[0];
+            if (user === undefined) {
+                return res.status(401).send('Usuario no Existe');
+            }
+            if (body.contrasena === user.contrasena) {
+                const token = jwt.sign({_id: user.id }, 'secret', { expiresIn: '1m' });
+                return res.status(200).json({ token });
+            } else {
+                return res.status(401).send('Invalido');
+            }
+        } else {
+            return res.status(500).send(err);
+        }
+    });
+});
+
+module.exports = router;
